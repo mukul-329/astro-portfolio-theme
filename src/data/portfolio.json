@@ -27,8 +27,7 @@
     "description": "A two-minute visual essay combining original footage, 3D elements, and motion design. Shot, edited, and scored independently — start to finish in three weeks.",
     "images": [
       "/images/portfolio/project-3a.jpg",
-      "/images/portfolio/project-3b.jpg",
-      "/images/portfolio/project-3c.jpg"
+      "/images/portfolio/project-3b.jpg"
     ],
     "slides": ["Opening Scene", "Modeling Sequence", "Developing Music for Documentary"]
   }
