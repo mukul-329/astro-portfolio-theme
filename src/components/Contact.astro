@@ -22,6 +22,7 @@ const socialLinks = getSocialLinks(personalData as unknown as Record<string, str
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div class="space-y-4 reveal" style="transition-delay: 0.1s;">
+          {personalData.email && (
           <div class="card">
             <div class="flex items-center gap-4">
               <div
@@ -52,6 +53,7 @@ const socialLinks = getSocialLinks(personalData as unknown as Record<string, str
               </div>
             </div>
           </div>
+          )}
 
           {
             personalData.phone && (
