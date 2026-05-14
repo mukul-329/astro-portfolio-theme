@@ -76,9 +76,13 @@ const projectsJson = JSON.stringify(
             {(project as any).colorIcon && (
               <div class="float-icon-wrap" aria-hidden="true">
                 <img
-                  src={withBase((project as any).colorIcon)}
+                  src={withBase(
+                    (project as any).colorIcon.includes(':')
+                      ? `/images/icons/${(project as any).colorIcon.replace(':', '/')}.svg`
+                      : (project as any).colorIcon
+                  )}
                   alt=""
-                  class={`float-icon${(project as any).colorIcon.includes('githubusercontent') ? ' float-icon-mdi' : ''}`}
+                  class="float-icon"
                   loading="lazy"
                   width="44"
                   height="44"
