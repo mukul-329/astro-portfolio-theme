@@ -34,7 +34,7 @@ Updates ALL direct dependencies to their latest versions and rewrites pnpm-lock.
 via a throwaway Docker container.
 
 Direct dependencies updated:
-  astro  tailwindcss  @tailwindcss/vite  @astrojs/check
+  astro  tailwindcss  @tailwindcss/vite  @astrojs/sitemap  @astrojs/check
   typescript  eslint  @typescript-eslint/parser
   eslint-plugin-astro  @types/node
 
@@ -85,7 +85,7 @@ if [ "$DISCARD" -eq 1 ] && [ "$LOCK_ONLY" -eq 1 ]; then
 fi
 
 # ── All direct dependencies ───────────────────────────────────────────────────
-PKGS="astro tailwindcss @tailwindcss/vite @astrojs/check typescript eslint @typescript-eslint/parser eslint-plugin-astro @types/node"
+PKGS="astro tailwindcss @tailwindcss/vite @astrojs/sitemap @astrojs/check typescript eslint @typescript-eslint/parser eslint-plugin-astro @types/node"
 
 # ── Build the pnpm command string ─────────────────────────────────────────────
 if [ "$LOCK_ONLY" -eq 1 ]; then
