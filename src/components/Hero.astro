@@ -1,8 +1,7 @@
 ---
 import personalData from '../data/personal.json';
-import projectsFile from '../data/projects.json';
+import projectsData from '../data/projects.json';
 import { augmentProjectsWithImages, type ProjectEntry } from '../lib/fetchGitHub';
-const projectsData = projectsFile.items;
 import { getSocialLinks } from '../lib/socialLinks';
 
 const heroSocialLinks = getSocialLinks(
@@ -12,46 +11,12 @@ const heroSocialLinks = getSocialLinks(
 
 import { icons } from '../lib/icons';
 import { withBase } from '../lib/assetPath';
-import { existsSync, readdirSync } from 'node:fs';
-import { extname, join } from 'node:path';
 
-const augmented = await augmentProjectsWithImages(projectsData as unknown as ProjectEntry[]);
-// Use GitHub-fetched featuredImage when available; fall back to sliderImage from JSON.
-// This keeps the slider populated even when GITHUB_USER is not configured.
-const featuredProjects = augmented
-  .map((p) => ({ ...p, featuredImage: p.featuredImage ?? p.sliderImage }))
-  .filter((p) => p.featuredImage)
-  .sort((a, b) => (a.sliderOrder ?? 999) - (b.sliderOrder ?? 999));
-// Split "Frontend & Backend" so the "&" can be styled with a different colour in the template.
+const augmented = await augmentProjectsWithImages(projectsData as ProjectEntry[]);
+const sliderProjects = augmented
+  .filter((p) => p.sliderImage)
+  .sort((a, b) => (a.sliderOrder ?? Infinity) - (b.sliderOrder ?? Infinity));
 const heroParts = personalData.heroRole.split(' & ');
-
-// CV auto-discovery: check personalData.cv first (external URL or local path),
-// then fall back to scanning public/cv/ for any PDF/DOC/DOCX file.
-const cvValue = (personalData.cv ?? '').trim();
-const isExternalCv = /^https?:\/\//i.test(cvValue);
-const hasLocalCv =
-  cvValue.startsWith('/') &&
-  existsSync(join(process.cwd(), 'public', cvValue.replace(/^\//, '')));
-
-let discoveredCv = '';
-const cvPublicDir = join(process.cwd(), 'public', 'cv');
-if (!isExternalCv && !hasLocalCv && existsSync(cvPublicDir)) {
-  const allowedCvExt = new Set(['.pdf', '.doc', '.docx']);
-  const candidates = readdirSync(cvPublicDir)
-    .filter((f) => allowedCvExt.has(extname(f).toLowerCase()))
-    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
-  if (candidates.length > 0) discoveredCv = `/cv/${candidates[0]}`;
-}
-
-const cvHref = isExternalCv ? cvValue : hasLocalCv ? cvValue : discoveredCv;
-const hasCv = Boolean(cvHref);
-
-const photoValue = (personalData.photo ?? '').trim();
-const isExternalPhoto = /^https?:\/\//i.test(photoValue);
-const hasPortrait =
-  photoValue !== '' &&
-  (isExternalPhoto ||
-    existsSync(join(process.cwd(), 'public', photoValue.replace(/^\//, ''))));
 ---
 
 <section id="home" class="relative min-h-screen overflow-hidden flex items-center">
@@ -72,7 +37,7 @@ const hasPortrait =
   >
   </div>
 
-  <div class="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10 py-32 lg:py-0">
+  <div class="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10 pt-32 lg:py-0">
     <div
       id="hero-canvas-wrapper"
       class="absolute overflow-hidden rounded-3xl pointer-events-none"
@@ -118,9 +83,9 @@ const hasPortrait =
 
         <div class="flex flex-col sm:flex-row gap-4 reveal" style="transition-delay: 0.3s;">
           <a href="#contact" class="btn-primary text-center">Get In Touch</a>
-          {hasCv ? (
+          {personalData.cv ? (
             <a
-              href={cvHref}
+              href={personalData.cv}
               target="_blank"
               rel="noopener noreferrer"
               class="btn-secondary text-center">Download CV</a>
@@ -144,22 +109,20 @@ const hasPortrait =
             ))
           }
         </div>
-        {hasPortrait && (
-          <div
-            class="portrait-peek-wrapper reveal"
-            aria-hidden="true"
-            style="transition-delay: 0.65s;"
-          >
-            <img
-              src={withBase(personalData.photo)}
-              alt={personalData.photoAlt ?? ''}
-              class="portrait-peek-img"
-              loading="lazy"
-              width="280"
-              height="350"
-            />
-          </div>
-        )}
+        <div
+          class="portrait-peek-wrapper reveal"
+          aria-hidden="true"
+          style="transition-delay: 0.65s;"
+        >
+          <img
+            src={withBase(personalData.photo)}
+            alt={personalData.photoAlt ?? ''}
+            class="portrait-peek-img"
+            loading="lazy"
+            width="280"
+            height="350"
+          />
+        </div>
       </div>
 
       <div
@@ -205,7 +168,7 @@ const hasPortrait =
             <div class="pf-body">
               <div class="relative w-full h-full">
                 {
-                  featuredProjects.map((project, i) => (
+                  sliderProjects.map((project, i) => (
                     <div
                       class="hero-slide absolute inset-0 flex items-center justify-center p-3 transition-[transform,opacity] duration-700 ease-in-out"
                       data-index={i}
@@ -217,7 +180,7 @@ const hasPortrait =
                       }
                     >
                       <img
-                        src={withBase(project.featuredImage!)}
+                        src={withBase(project.sliderImage!)}
                         alt={project.title}
                         class="w-full h-full object-cover"
                         loading="lazy"
@@ -241,7 +204,7 @@ const hasPortrait =
 
               <div class="absolute top-2 left-0 right-0 flex justify-center gap-1.5 z-30">
                 {
-                  featuredProjects.map((_, i) => (
+                  sliderProjects.map((_, i) => (
                     <button
                       class="slider-dot w-1.5 h-1.5 transition-[background-color,width] duration-300"
                       data-dot={i}
@@ -286,7 +249,7 @@ const hasPortrait =
 
             <div class="pf-badge">
               {
-                featuredProjects.map((project, i) => (
+                sliderProjects.map((project, i) => (
                   <div
                     class="hero-badge-icon absolute inset-0 flex items-center justify-center transition-[opacity,transform] duration-500"
                     data-badge={i}
@@ -310,7 +273,7 @@ const hasPortrait =
 
             <div class="pf-counter">
               <span class="font-mono text-sm font-bold slider-counter" style="color: #8fa8c8;"
-                >1 / {featuredProjects.length}</span
+                >1 / {sliderProjects.length}</span
               >
             </div>
           </article>
@@ -810,6 +773,13 @@ const hasPortrait =
     height: auto;
     transform: translateY(0);
     animation-delay: 5s;
+    pointer-events: auto;
+    filter: drop-shadow(0px 0px 0px 0px rgba(0, 0, 0, 0));
+    transition: filter 500ms ease-out;
+  }
+  .portrait-peek-img:hover {
+    filter: drop-shadow(0px 14px 28px rgba(0, 0, 0, 0.65))
+      drop-shadow(0px 10px 10px rgba(0, 0, 0, 0.4));
   }
 
   @media (min-width: 1280px) and (max-width: 1535px) {
@@ -1101,18 +1071,11 @@ const hasPortrait =
 
   if (total > 0) resetTimer();
 
-  // Clicking a hero slide opens the matching project card modal in Projects.astro.
-  // data-project-index maps hero slides to their original index in the full projects list.
   slides.forEach((slide) => {
     slide.addEventListener('click', (e: MouseEvent) => {
       if ((e.target as HTMLElement).closest('button')) return;
       const idx = (slide as HTMLElement).dataset.projectIndex;
-      // Grid layout: click opens the project modal
-      const gridCard = document.querySelector<HTMLElement>(`.project-card[data-index="${idx}"]`);
-      if (gridCard) { gridCard.click(); return; }
-      // Showcase layout: scroll to the matching feature card
-      document.querySelector<HTMLElement>(`.project-feature[data-index="${idx}"]`)
-        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      document.querySelector<HTMLElement>(`.project-card[data-index="${idx}"]`)?.click();
     });
   });
 
@@ -1133,8 +1096,6 @@ const hasPortrait =
   const projectFrame = document.getElementById('project-frame') as HTMLElement | null;
   const pfHeader = document.getElementById('project-frame-header') as HTMLElement | null;
   const pfFrameParent = projectFrame?.parentElement as HTMLElement | null;
-  // pfDx/pfDy: accumulated translation of the draggable project frame from its original position.
-  // pfOx/pfOy: pointer position at drag start minus pfDx/pfDy, used to compute the new offset on move.
   let pfDx = 0,
     pfDy = 0,
     pfOx = 0,
@@ -1261,7 +1222,6 @@ const hasPortrait =
 
     let cols = 0,
       rows = 0;
-
     let timers = new Float32Array(0);
 
     function resize() {
@@ -1343,8 +1303,6 @@ const hasPortrait =
     let rafId = 0;
     let heroVisible = true;
 
-    // Self-terminating loop: the rAF cycle stops as soon as all dot timers reach 0,
-    // so the canvas draws nothing and burns no CPU when the user's cursor is idle.
     function startAnimation() {
       if (rafId !== 0) return;
       function loop() {
