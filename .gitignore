@@ -15,6 +15,9 @@ public/fonts/
 # dependencies
 node_modules/
 
+# npm to pnmp
+.pnpm-store
+
 # github image cache — generated at build time
 src/data/github-image-cache.json
 
