@@ -142,7 +142,67 @@ if [ "$INSTALL" -eq 1 ]; then
 fi
 # For --discard and --lock-only the trap fires at exit and removes NM_TMP.
 
-# ── Step 2: Age report ────────────────────────────────────────────────────────
+# ── Step 2: Prune expired minimumReleaseAgeExclude entries ───────────────────
+# Each entry is a temporary bypass for the 7-day minimumReleaseAge hold (e.g.
+# an emergency security patch that can't wait a week). Once the version is
+# older than 7 days pnpm allows it anyway, so the exemption is dead config.
+echo ""
+echo "==> Pruning expired minimumReleaseAgeExclude entries..."
+
+EXCLUDE_ENTRIES=$(grep -E '^  - "' pnpm-workspace.yaml 2>/dev/null \
+  | sed 's/^  - "//;s/"$//')
+
+if [ -z "$EXCLUDE_ENTRIES" ]; then
+  echo "  No entries to check."
+else
+  EXCLUDE_CHANGED=0
+  while IFS= read -r entry; do
+    [ -z "$entry" ] && continue
+    VERSION=$(echo "$entry" | sed 's/.*@//')
+    PKG=$(echo "$entry" | sed "s|@${VERSION}$||")
+
+    # Fetch publish time from the full package document (time object contains
+    # per-version timestamps keyed by semver string).
+    PUBLISHED=$(wget -qO- "https://registry.npmjs.org/${PKG}" 2>/dev/null \
+      | grep -o "\"${VERSION}\":\"[^\"]*\"" | head -1 \
+      | sed 's/.*":"//;s/"$//')
+
+    if [ -z "$PUBLISHED" ]; then
+      printf "  %-40s (publish date unavailable — keeping)\n" "$entry"
+      continue
+    fi
+
+    PUB_EPOCH=$(date -d "$PUBLISHED" +%s 2>/dev/null || echo 0)
+    NOW_EPOCH=$(date +%s)
+    AGE_DAYS=$(( (NOW_EPOCH - PUB_EPOCH) / 86400 ))
+
+    if [ "$AGE_DAYS" -ge 7 ]; then
+      # Remove the entry line and any immediately-preceding indented comment block.
+      awk -v target="  - \"${entry}\"" '
+        /^  #/ { buf[nb++] = $0; next }
+        $0 == target { nb = 0; next }
+        { for (i = 0; i < nb; i++) print buf[i]; nb = 0; print }
+        END { for (i = 0; i < nb; i++) print buf[i] }
+      ' pnpm-workspace.yaml > pnpm-workspace.yaml.tmp \
+        && [ -s pnpm-workspace.yaml.tmp ] \
+        && mv pnpm-workspace.yaml.tmp pnpm-workspace.yaml \
+        || { rm -f pnpm-workspace.yaml.tmp
+             printf "${YELLOW}Warning: could not prune %s — skipping${RESET}\n" "$entry"; }
+      printf "  ${GREEN}%-40s %d days old — removed${RESET}\n" "$entry" "$AGE_DAYS"
+      EXCLUDE_CHANGED=1
+    else
+      printf "  ${YELLOW}%-40s %d days old — still active${RESET}\n" "$entry" "$AGE_DAYS"
+    fi
+  done <<ENTRIES
+$EXCLUDE_ENTRIES
+ENTRIES
+
+  if [ "$EXCLUDE_CHANGED" -eq 0 ]; then
+    echo "  Nothing to prune."
+  fi
+fi
+
+# ── Step 3: Age report ────────────────────────────────────────────────────────
 # Query the npm registry for publish timestamps of the resolved versions.
 # pnpm already enforced the 1-week minimum; this report shows ages so the operator
 # can confirm nothing slipped through before committing the lockfile.
@@ -206,7 +266,7 @@ if [ "$AGE_WARNING" -eq 1 ]; then
   printf "You may want to wait before committing the updated lockfile.\n"
 fi
 
-# ── Step 3: Audit ─────────────────────────────────────────────────────────────
+# ── Step 4: Audit ─────────────────────────────────────────────────────────────
 # Fail if any high or critical CVE is present in the resolved dependency tree.
 # Workspace overrides in pnpm-workspace.yaml already patch known transitive CVEs
 # (e.g. devalue GHSA-77vg-94rm-hx3p). Add new overrides there before running again.
@@ -227,7 +287,7 @@ docker run --rm \
     exit 1
   }
 
-# ── Step 4: Pin three.js CDN version in download-assets.mjs ──────────────────
+# ── Step 5: Pin three.js CDN version in download-assets.mjs ──────────────────
 echo ""
 printf 'Resolving latest three.js version... '
 THREE_LATEST=$(docker run --rm -e HOME=/tmp node:24-alpine \
@@ -248,7 +308,7 @@ else
   fi
 fi
 
-# ── Step 5: Record successful update date in README.md ────────────────────────
+# ── Step 6: Record successful update date in README.md ────────────────────────
 TIMESTAMP=$(date -u +"%Y-%m-%d")
 MARKER="<!-- packages-last-updated:"
 NEW_LINE="<!-- packages-last-updated: ${TIMESTAMP} -->"
